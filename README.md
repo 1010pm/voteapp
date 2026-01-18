@@ -1,70 +1,153 @@
-# Getting Started with Create React App
+# VoteApp - Voting Platform
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+A modern, secure voting platform built with React.js and Firebase. Create polls, collect votes, and view results with beautiful visualizations.
 
-## Available Scripts
+## Features
 
-In the project directory, you can run:
+- ✅ **Poll Creation**: Create single or multiple choice polls
+- ✅ **Voting System**: Secure voting with guest support
+- ✅ **Real-time Results**: Beautiful charts and analytics
+- ✅ **QR Code Sharing**: Share polls via QR codes
+- ✅ **Bilingual Support**: Arabic & English with RTL support
+- ✅ **Dark Mode**: Light and dark themes
+- ✅ **Mobile Responsive**: Perfect on all devices
 
-### `npm start`
+## Tech Stack
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+- **Frontend**: React.js (latest)
+- **Backend**: Firebase (Authentication, Firestore, Storage, Hosting)
+- **State Management**: Redux Toolkit
+- **Routing**: React Router
+- **Styling**: Tailwind CSS
+- **Animations**: Framer Motion
+- **Charts**: Recharts
+- **i18n**: i18next
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+## Setup Instructions
 
-### `npm test`
+### 1. Clone the repository
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+```bash
+git clone https://github.com/1010pm/voteapp.git
+cd voteapp
+```
 
-### `npm run build`
+### 2. Install dependencies
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+```bash
+npm install
+```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### 3. Firebase Setup
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+1. Create a Firebase project at [Firebase Console](https://console.firebase.google.com)
+2. Enable Authentication (Email/Password, Google Sign-In)
+3. Create Firestore database
+4. Enable Storage
+5. Copy your Firebase config values to `.env` file
 
-### `npm run eject`
+### 4. Environment Variables
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+Create a `.env` file in the root directory:
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+```env
+# Firebase Configuration
+REACT_APP_FIREBASE_API_KEY=your_api_key_here
+REACT_APP_FIREBASE_AUTH_DOMAIN=your_project_id.firebaseapp.com
+REACT_APP_FIREBASE_PROJECT_ID=your_project_id
+REACT_APP_FIREBASE_STORAGE_BUCKET=your_project_id.appspot.com
+REACT_APP_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+REACT_APP_FIREBASE_APP_ID=your_app_id
+REACT_APP_FIREBASE_MEASUREMENT_ID=your_measurement_id
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+# App Configuration
+REACT_APP_NAME=VoteApp
+REACT_APP_VERSION=1.0.0
+REACT_APP_ENV=development
+```
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### 5. Firestore Rules & Indexes
 
-## Learn More
+Deploy Firestore security rules:
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+```bash
+firebase deploy --only firestore:rules
+```
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+Deploy Firestore indexes:
 
-### Code Splitting
+```bash
+firebase deploy --only firestore:indexes
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+### 6. Run the application
 
-### Analyzing the Bundle Size
+```bash
+npm start
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+The app will open at `http://localhost:3000`
 
-### Making a Progressive Web App
+## Building for Production
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+```bash
+npm run build
+```
 
-### Advanced Configuration
+## Deployment
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+Deploy to Firebase Hosting:
 
-### Deployment
+```bash
+firebase deploy --only hosting
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+## Project Structure
 
-### `npm run build` fails to minify
+```
+voteapp/
+├── public/
+│   ├── firestore.rules          # Firestore security rules
+│   └── manifest.json
+├── src/
+│   ├── components/              # Reusable components
+│   │   ├── common/             # Common UI components
+│   │   └── layout/             # Layout components
+│   ├── context/                # React Context providers
+│   ├── firebase/               # Firebase configuration
+│   ├── locales/                # i18n translations
+│   ├── pages/                  # Page components
+│   │   ├── auth/              # Authentication pages
+│   │   ├── polls/             # Poll-related pages
+│   │   └── dashboard/         # Dashboard pages
+│   ├── services/               # API services
+│   ├── store/                  # Redux store
+│   └── utils/                  # Utility functions
+├── .env                        # Environment variables (not in git)
+├── .gitignore                  # Git ignore rules
+├── firebase.json               # Firebase configuration
+├── firestore.indexes.json      # Firestore indexes
+└── package.json
+```
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+## Security Notes
+
+⚠️ **Important**: Never commit `.env` file to version control. It contains sensitive Firebase credentials.
+
+The `.env` file is already included in `.gitignore` to prevent accidental commits.
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## License
+
+This project is open source and available under the MIT License.
+
+## Support
+
+For issues and questions, please open an issue on GitHub.

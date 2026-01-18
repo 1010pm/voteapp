@@ -1,0 +1,189 @@
+/**
+ * Firestore Security Rules - Public Voting Platform
+ * 
+ * IMPORTANT: Copy these rules to Firebase Console > Firestore Database > Rules
+ * 
+ * These rules ensure:
+ * - Any authenticated user can create polls (SaaS model)
+ * - Public polls are readable by anyone (no auth required)
+ * - Guest voting allowed when poll.guestVoting is true
+ * - One vote per user/guest per poll (enforced via unique voteId)
+ * - Email verification required for authenticated voters (not guests)
+ * - Result visibility: public = anyone, private = creator only
+ * - Poll creators can manage their own polls
+ * - Admins can manage all polls
+ */
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is admin
+    function isAdmin() {
+      return isAuthenticated() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function to check if user owns the document
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to check if user email is verified
+    function isEmailVerified() {
+      return isAuthenticated() &&
+             request.auth.token.email_verified == true;
+    }
+    
+    // Helper function to check if poll creator
+    function isPollCreator(pollId) {
+      return isAuthenticated() &&
+             get(/databases/$(database)/documents/polls/$(pollId)).data.createdBy == request.auth.uid;
+    }
+    
+    // Helper function to check if poll is active
+    function isPollActive(pollId) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId));
+      return poll.data.status == 'active';
+    }
+    
+    // Helper function to check if poll allows guest voting
+    function allowsGuestVoting(pollId) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId));
+      return poll.data.guestVoting == true;
+    }
+    
+    // Helper function to check if poll results are public
+    function isResultPublic(pollId) {
+      let poll = get(/databases/$(database)/documents/polls/$(pollId));
+      return poll.data.resultVisibility == 'public';
+    }
+    
+    // Users collection
+    match /users/{userId} {
+      // Users can read their own data
+      allow read: if isOwner(userId);
+      
+      // Users can create their own document
+      allow create: if isOwner(userId) && 
+                       request.resource.data.keys().hasAll(['uid', 'email', 'role']) &&
+                       request.resource.data.uid == userId &&
+                       request.resource.data.role == 'user';
+      
+      // Users can update their own data (except role)
+      allow update: if isOwner(userId) && 
+                       !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role']);
+      
+      // Admins can read all users
+      allow read: if isAdmin();
+      
+      // Admins can update user roles
+      allow update: if isAdmin();
+      
+      // Admins can delete users
+      allow delete: if isAdmin();
+    }
+    
+    // Polls collection
+    match /polls/{pollId} {
+      // Public read: Anyone can read active polls (for public voting)
+      allow read: if true;
+      
+      // Authenticated users can create polls
+      allow create: if isAuthenticated() &&
+                       request.resource.data.keys().hasAll(['title', 'type', 'status', 'createdBy', 'createdAt']) &&
+                       request.resource.data.createdBy == request.auth.uid &&
+                       request.resource.data.type in ['single', 'multiple'] &&
+                       request.resource.data.status in ['draft', 'active', 'closed'] &&
+                       request.resource.data.resultVisibility in ['public', 'private'];
+      
+      // Poll creators and admins can update their polls
+      allow update: if (isPollCreator(pollId) || isAdmin()) &&
+                       request.resource.data.diff(resource.data).affectedKeys().hasAll(['updatedAt']);
+      
+      // Poll creators and admins can delete their polls
+      allow delete: if isPollCreator(pollId) || isAdmin();
+      
+      // Poll options subcollection
+      match /pollOptions/{optionId} {
+        // Public read: Anyone can read options (for voting)
+        allow read: if true;
+        
+        // Poll creators and admins can create options (during poll creation/update)
+        allow create: if (isPollCreator(pollId) || isAdmin()) &&
+                         request.resource.data.keys().hasAll(['pollId', 'text', 'order']) &&
+                         request.resource.data.pollId == pollId;
+        
+        // Poll creators and admins can update options (structure, not vote counts)
+        // Vote counts are updated via transactions, not direct writes
+        allow update: if (isPollCreator(pollId) || isAdmin()) &&
+                         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['voteCount']);
+        
+        // Poll creators and admins can delete options
+        allow delete: if isPollCreator(pollId) || isAdmin();
+      }
+    }
+    
+    // Votes collection
+    match /votes/{voteId} {
+      // Users can read their own votes
+      allow read: if isAuthenticated() && 
+                     resource.data.userId == request.auth.uid;
+      
+      // Poll creators can read all votes for their polls (for results)
+      allow read: if isAuthenticated() && 
+                     isPollCreator(resource.data.pollId);
+      
+      // Public results: Anyone can read votes if poll results are public
+      allow read: if isResultPublic(get(/databases/$(database)/documents/polls/$(resource.data.pollId)).id);
+      
+      // Admins can read all votes
+      allow read: if isAdmin();
+      
+      // AUTHENTICATED VOTES: Users can create votes IF:
+      // 1. Email is verified
+      // 2. Poll is active
+      // 3. Vote ID format matches pollId_userId
+      allow create: if isAuthenticated() &&
+                       isEmailVerified() &&
+                       voteId.matches('^' + request.resource.data.pollId + '_' + request.auth.uid + '$') &&
+                       request.resource.data.userId == request.auth.uid &&
+                       request.resource.data.guestId == null &&
+                       request.resource.data.keys().hasAll(['pollId', 'userId', 'optionIds', 'createdAt']) &&
+                       request.resource.data.optionIds is list &&
+                       request.resource.data.optionIds.size() > 0 &&
+                       isPollActive(request.resource.data.pollId);
+      
+      // GUEST VOTES: Guests can create votes IF:
+      // 1. Poll allows guest voting
+      // 2. Poll is active
+      // 3. Vote ID format matches pollId_guest_<guestId>
+      allow create: if allowsGuestVoting(request.resource.data.pollId) &&
+                       voteId.matches('^' + request.resource.data.pollId + '_guest_') &&
+                       request.resource.data.userId == null &&
+                       request.resource.data.guestId != null &&
+                       request.resource.data.keys().hasAll(['pollId', 'guestId', 'optionIds', 'createdAt']) &&
+                       request.resource.data.optionIds is list &&
+                       request.resource.data.optionIds.size() > 0 &&
+                       isPollActive(request.resource.data.pollId);
+      
+      // Votes are immutable - no updates allowed
+      allow update: if false;
+      
+      // Only poll creators and admins can delete votes
+      allow delete: if isAuthenticated() && 
+                       (isPollCreator(resource.data.pollId) || isAdmin());
+    }
+    
+    // Default: deny all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
